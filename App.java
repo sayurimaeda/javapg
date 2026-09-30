@@ -1,5 +1,6 @@
 import com.sun.net.httpserver.HttpServer; // 簡単なHTTPサーバーを使うための機能を読み込みます。
 import java.net.InetSocketAddress; // サーバーの待ち受け場所とポート番号を指定する機能を読み込みます。
+import java.net.URLDecoder; // URL用に変換された文字を元に戻す機能を読み込みます。
 
 public class App { // Appという名前のプログラムを定義します。
     public static void main(String[] args) throws Exception { // プログラム開始時に実行される場所を定義します。
@@ -11,6 +12,7 @@ public class App { // Appという名前のプログラムを定義します。
                 String query = exchange.getRequestURI().getRawQuery(); // URLのクエリを取り出します。
                 System.out.println("query = " + query);
                 String name = query.substring(5); // name=の後ろを切り出します。
+                name = URLDecoder.decode(name, "UTF-8"); // URL用に変換された名前を日本語に戻します。
                 message = "こんにちは、" + name + "さん！"; // 名前を応答に混ぜます。
             } else if (path.equals("/bye")) { // パスが/byeかどうかを比べます。
                 message = "ごめんあそばせ！"; // /byeに返す文字を入れます。
