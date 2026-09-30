@@ -8,7 +8,10 @@ public class App { // Appという名前のプログラムを定義します。
             String path = exchange.getRequestURI().getPath(); // ブラウザからアクセスされたパスを取り出します。
             String message; // ブラウザに返す文字を用意する変数を宣言します。
             if (path.equals("/hello")) { // パスが/helloかどうかを比べます。
-                message = "ごきげんよう！"; // /helloに返す文字を入れます。
+                String query = exchange.getRequestURI().getRawQuery(); // URLのクエリを取り出します。
+                System.out.println("query = " + query);
+                String name = query.substring(5); // name=の後ろを切り出します。
+                message = "こんにちは、" + name + "さん！"; // 名前を応答に混ぜます。
             } else if (path.equals("/bye")) { // パスが/byeかどうかを比べます。
                 message = "ごめんあそばせ！"; // /byeに返す文字を入れます。
             } else if (path.equals("/menu")) { // パスが/menuかどうかを比べます。
