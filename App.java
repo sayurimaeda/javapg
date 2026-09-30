@@ -11,6 +11,8 @@ public class App { // Appという名前のプログラムを定義します。
                 message = "ごきげんよう！"; // /helloに返す文字を入れます。
             } else if (path.equals("/bye")) { // パスが/byeかどうかを比べます。
                 message = "ごめんあそばせ！"; // /byeに返す文字を入れます。
+            } else if (path.equals("/menu")) { // パスが/menuかどうかを比べます。
+                message = "紅茶はアールグレーです"; // /menuに返す文字を入れます。
             } else { // どのパスにも当てはまらない場合です。
                 message = "ページが見つかりません"; // 見つからないパスに返す文字を入れます。
             } // パスによる振り分けを終了します。
