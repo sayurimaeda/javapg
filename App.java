@@ -32,7 +32,7 @@ public class App { // Appという名前のプログラムを定義します。
                 }
                 html += "</ul>"; // Todo一覧のHTMLを閉じます。
                 message = html; // 組み立てたフォームと一覧を返す中身にします。
-                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8"); // 一覧をHTMLとして返します。
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
             } else if (path.equals("/hello")) { // パスが/helloかどうかを比べます。
                 String query = exchange.getRequestURI().getRawQuery(); // URLのクエリを取り出します。
                 System.out.println("query = " + query);
