@@ -6,15 +6,16 @@ import java.util.ArrayList; // Todoを複数入れるリストを作る機能を
 import java.util.List; // Todoのリストを扱う機能を読み込みます。
 
 public class App { // Appという名前のプログラムを定義します。
-    static List<Todo> todos = new ArrayList<>(); // ★変更 Todoを保存するリスト（複数のTodoを入れる箱）を用意します。
-    static int nextId = 1; // ★変更 次に使うTodoの番号を用意します。
+    static List<Todo> todos = new ArrayList<>(); // ★変更 Todoを保存するリスト（複数のTodoを入れる箱）です。
+    static int nextId = 1; // ★変更 次に振る番号を1から始めます。
 
     public static void main(String[] args) throws Exception { // プログラム開始時に実行される場所を定義します。
+        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更 起動時のサンプルTodoを追加します。
+        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更 起動時のサンプルTodoを作ります。
+        egg.setDone(true); // ★変更 卵を買うを完了済みにします。
+        todos.add(egg); // ★変更 卵を買うをリストに追加します。
+
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080番ポートでサーバーを用意します。
-        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更 起動時の1件目のサンプルTodoを追加します。
-        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更 起動時の2件目のサンプルTodoを用意します。
-        egg.setDone(true); // ★変更 2件目のサンプルTodoを完了済みにします。
-        todos.add(egg); // ★変更 2件目のサンプルTodoを追加します。
         server.createContext("/", exchange -> { // ブラウザからトップページへのアクセスを処理します。
             String path = exchange.getRequestURI().getPath(); // ブラウザからアクセスされたパスを取り出します。
             String method = exchange.getRequestMethod(); // GETやPOSTなどの方法を取り出します。
@@ -24,22 +25,55 @@ public class App { // Appという名前のプログラムを定義します。
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8); // 送られてきた中身をUTF-8で受け取ります。
                 String value = body.substring(5); // todo=の5文字を除いた値を取り出します。
                 String title = URLDecoder.decode(value, StandardCharsets.UTF_8); // ★変更 URL用に変換されたTodoの題名を日本語に戻します。
-                if (!title.isEmpty()) { // ★変更 Todoの題名が空ではないかどうかを比べます。
+                if (!title.isEmpty()) { // Todoが空ではないかどうかを比べます。
                     todos.add(new Todo(nextId, title)); // ★変更 Todoを1件作ってリストに追加します。
-                    nextId++; // ★変更 次のTodoに使う番号を1つ進めます。
+                    nextId++; // ★変更 次のTodoに使う番号を増やします。
                 }
                 exchange.getResponseHeaders().set("Location", "/"); // 戻り先をトップページに指定します。
                 exchange.sendResponseHeaders(303, -1); // トップページへ戻す応答を送ります。
                 exchange.close(); // 通信を閉じます。
                 return; // この分岐を終了します。
+            } else if (path.equals("/done") && method.equals("GET")) { // ★追加 完了リンクへのアクセスを処理します。
+                String query = exchange.getRequestURI().getQuery(); // ★追加 URLのidを含むクエリを受け取ります。
+                if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加 idが付いているか確認します。
+                    try { // ★追加 idを数字に変換します。
+                        int id = Integer.parseInt(query.substring(3)); // ★追加 idを数に変えます。
+                        for (Todo todo : todos) { // ★追加 Todoを1件ずつ確認します。
+                            if (todo.getId() == id) { // ★追加 idが一致するか確認します。
+                                todo.setDone(true); // ★追加 Todoを完了済みにします。
+                                break; // ★追加 一致したTodoの確認を終えます。
+                            }
+                        }
+                    } catch (NumberFormatException e) { // ★追加 数字でないidは何もしません。
+                    }
+                }
+                exchange.getResponseHeaders().set("Location", "/"); // ★追加 トップページへ戻します。
+                exchange.sendResponseHeaders(303, -1); // ★追加 トップページへ戻す応答を送ります。
+                exchange.close(); // ★追加 通信を閉じます。
+                return; // ★追加 この分岐を終了します。
+            } else if (path.equals("/delete") && method.equals("GET")) { // ★追加 削除リンクへのアクセスを処理します。
+                String query = exchange.getRequestURI().getQuery(); // ★追加 URLのidを含むクエリを受け取ります。
+                if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加 idが付いているか確認します。
+                    try { // ★追加 idを数字に変換します。
+                        int id = Integer.parseInt(query.substring(3)); // ★追加 idを数に変えます。
+                        todos.removeIf(todo -> todo.getId() == id); // ★追加 idが一致するTodoを削除します。
+                    } catch (NumberFormatException e) { // ★追加 数字でないidは何もしません。
+                    }
+                }
+                exchange.getResponseHeaders().set("Location", "/"); // ★追加 トップページへ戻します。
+                exchange.sendResponseHeaders(303, -1); // ★追加 トップページへ戻す応答を送ります。
+                exchange.close(); // ★追加 通信を閉じます。
+                return; // ★追加 この分岐を終了します。
             } else if (path.equals("/")) { // パスがトップページかどうかを比べます。
                 String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // Todo追加フォームと一覧のHTML（Webページの記述）を始めます。
                 for (Todo todo : todos) { // ★変更 Todoを1件ずつ取り出します。
-                    String mark = ""; // ★変更 完了印を入れる文字を用意します。
-                    if (todo.isDone()) { // ★変更 Todoが完了済みかどうかを比べます。
-                        mark = " ✔"; // ★変更 完了済みのTodoに印を付けます。
+                    String mark = ""; // ★変更 完了済みの印を入れる文字を用意します。
+                    if (todo.isDone()) { // ★変更 Todoが完了済みかどうかを確認します。
+                        mark = " ✔"; // ★変更 完了済みの印を入れます。
                     }
-                    html += "<li>" + todo.getTitle() + mark + "</li>"; // ★変更 Todoの題名と完了印をリスト項目として追加します。
+                    html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
+                            + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
+                                                                                                // title、完了リンク、削除リンクを一覧に追加します。
                 }
                 html += "</ul>"; // Todo一覧のHTMLを閉じます。
                 message = html; // 組み立てたフォームと一覧を返す中身にします。
