@@ -65,17 +65,24 @@ public class App { // Appという名前のプログラムを定義します。
                 exchange.close(); // ★追加 通信を閉じます。
                 return; // ★追加 この分岐を終了します。
             } else if (path.equals("/")) { // パスがトップページかどうかを比べます。
-                String html = "<form method='post' action='/add'><input name='todo'><button>追加</button></form><ul>"; // Todo追加フォームと一覧のHTML（Webページの記述）を始めます。
-                for (Todo todo : todos) { // ★変更 Todoを1件ずつ取り出します。
-                    String mark = ""; // ★変更 完了済みの印を入れる文字を用意します。
-                    if (todo.isDone()) { // ★変更 Todoが完了済みかどうかを確認します。
-                        mark = " ✔"; // ★変更 完了済みの印を入れます。
+                String html = "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form>"; // ★追加
+                                                                                                                                                                                                                                                                                   // ページの見出しと最小限の幅・余白・文字サイズを設定します。
+                if (todos.isEmpty()) { // ★追加 Todoが0件か確認します。
+                    html += "<p>今おつとめは無いようじゃの</p>"; // ★追加 Todoがないときの案内を表示します。
+                } else { // ★追加 Todoがある場合です。
+                    html += "<ul>"; // ★追加 Todo一覧を始めます。
+                    for (Todo todo : todos) { // ★変更 Todoを1件ずつ取り出します。
+                        String mark = ""; // ★変更 完了済みの印を入れる文字を用意します。
+                        if (todo.isDone()) { // ★変更 Todoが完了済みかどうかを確認します。
+                            mark = " ✔"; // ★変更 完了済みの印を入れます。
+                        }
+                        html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
+                                + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
+                                                                                                    // title、完了リンク、削除リンクを一覧に追加します。
                     }
-                    html += "<li>" + todo.getTitle() + mark + " <a href='/done?id=" + todo.getId()
-                            + "'>完了</a> <a href='/delete?id=" + todo.getId() + "'>削除</a></li>"; // ★追加
-                                                                                                // title、完了リンク、削除リンクを一覧に追加します。
+                    html += "</ul>"; // ★追加 Todo一覧のHTMLを閉じます。
                 }
-                html += "</ul>"; // Todo一覧のHTMLを閉じます。
+                html += "</body></html>"; // ★追加 ページのHTMLを閉じます。
                 message = html; // 組み立てたフォームと一覧を返す中身にします。
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
             } else { // どのパスにも当てはまらない場合です。
