@@ -2,6 +2,9 @@ import com.sun.net.httpserver.HttpServer; // 簡単なHTTPサーバーを使う�
 import java.net.InetSocketAddress; // サーバーの待ち受け場所とポート番号を指定する機能を読み込みます。
 import java.net.URLDecoder; // URL用に変換された文字を元に戻す機能を読み込みます。
 import java.nio.charset.StandardCharsets; // 文字コードを指定する機能を読み込みます。
+import java.nio.file.Files; // ファイルの読み書きをする機能を読み込みます。
+import java.nio.file.Path; // ファイルの場所を表す機能を読み込みます。
+import java.io.IOException; // ファイル操作で起きるエラーを扱う機能を読み込みます。
 import java.util.ArrayList; // Todoを複数入れるリストを作る機能を読み込みます。
 import java.util.List; // Todoのリストを扱う機能を読み込みます。
 
@@ -10,10 +13,7 @@ public class App { // Appという名前のプログラムを定義します。
     static int nextId = 1; // ★変更 次に振る番号を1から始めます。
 
     public static void main(String[] args) throws Exception { // プログラム開始時に実行される場所を定義します。
-        todos.add(new Todo(nextId++, "牛乳を買う")); // ★変更 起動時のサンプルTodoを追加します。
-        Todo egg = new Todo(nextId++, "卵を買う"); // ★変更 起動時のサンプルTodoを作ります。
-        egg.setDone(true); // ★変更 卵を買うを完了済みにします。
-        todos.add(egg); // ★変更 卵を買うをリストに追加します。
+        load(); // ★追加 起動時にtodos.csvからTodoを読み込みます。
 
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0); // 8080番ポートでサーバーを用意します。
         server.createContext("/", exchange -> { // ブラウザからトップページへのアクセスを処理します。
@@ -28,6 +28,7 @@ public class App { // Appという名前のプログラムを定義します。
                 if (!title.isEmpty()) { // Todoが空ではないかどうかを比べます。
                     todos.add(new Todo(nextId, title)); // ★変更 Todoを1件作ってリストに追加します。
                     nextId++; // ★変更 次のTodoに使う番号を増やします。
+                    save();// ★追加 完了状態の変更をtodos.csvに保存します。
                 }
                 exchange.getResponseHeaders().set("Location", "/"); // 戻り先をトップページに指定します。
                 exchange.sendResponseHeaders(303, -1); // トップページへ戻す応答を送ります。
@@ -41,6 +42,7 @@ public class App { // Appという名前のプログラムを定義します。
                         for (Todo todo : todos) { // ★追加 Todoを1件ずつ確認します。
                             if (todo.getId() == id) { // ★追加 idが一致するか確認します。
                                 todo.setDone(true); // ★追加 Todoを完了済みにします。
+                                save(); // ★追加 完了状態の変更をtodos.csvに保存します。
                                 break; // ★追加 一致したTodoの確認を終えます。
                             }
                         }
@@ -56,7 +58,10 @@ public class App { // Appという名前のプログラムを定義します。
                 if (query != null && query.startsWith("id=") && query.length() > 3) { // ★追加 idが付いているか確認します。
                     try { // ★追加 idを数字に変換します。
                         int id = Integer.parseInt(query.substring(3)); // ★追加 idを数に変えます。
-                        todos.removeIf(todo -> todo.getId() == id); // ★追加 idが一致するTodoを削除します。
+                        boolean removed = todos.removeIf(todo -> todo.getId() == id); // ★追加 idが一致するTodoを削除します。
+                        if (removed) { // ★追加 Todoが削除されたか確認します。
+                            save(); // ★追加 削除後の内容をtodos.csvに保存します。
+                        }
                     } catch (NumberFormatException e) { // ★追加 数字でないidは何もしません。
                     }
                 }
@@ -66,7 +71,7 @@ public class App { // Appという名前のプログラムを定義します。
                 return; // ★追加 この分岐を終了します。
             } else if (path.equals("/")) { // パスがトップページかどうかを比べます。
                 String html = "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form>"; // ★追加
-                                                                                                                                                                                                                                                                                   // ページの見出しと最小限の幅・余白・文字サイズを設定します。
+                                                                                                                                                                                                                                                                                    // ページの見出しと最小限の幅・余白・文字サイズを設定します。
                 if (todos.isEmpty()) { // ★追加 Todoが0件か確認します。
                     html += "<p>今おつとめは無いようじゃの</p>"; // ★追加 Todoがないときの案内を表示します。
                 } else { // ★追加 Todoがある場合です。
@@ -96,6 +101,43 @@ public class App { // Appという名前のプログラムを定義します。
         server.start(); // サーバーの待ち受けを開始します。
         System.out.println("サーバー起動: [http://localhost:8080](http://localhost:8080) （止めるときは Ctrl+C）"); // 起動メッセージをターミナルに表示します。
     } // mainメソッドを終了します。
+
+    static void save() { // ★追加 Todo全件をtodos.csvへ保存するメソッドです。
+        List<String> lines = new ArrayList<>(); // ★追加 CSV（カンマ区切りのテキスト）の各行を入れます。
+        for (Todo todo : todos) { // ★追加 Todoを1件ずつ保存用の行にします。
+            lines.add(todo.getId() + "," + (todo.isDone() ? "1" : "0") + "," + todo.getTitle()); // ★追加 id、完了状態、題名を書きます。
+        }
+        try { // ★追加 ファイルへ書き込みます。
+            Files.write(Path.of("todos.csv"), lines, StandardCharsets.UTF_8); // ★追加 UTF-8で全件を書き出します。
+        } catch (IOException e) { // ★追加 ファイルの書き込みエラーを受け止めます。
+            System.err.println("todos.csvを保存できませんでした: " + e.getMessage()); // ★追加 エラー内容を表示します。
+        }
+    }
+
+    static void load() { // ★追加 todos.csvからTodo全件を読み込むメソッドです。
+        Path path = Path.of("todos.csv"); // ★追加 読み込むファイルの場所を指定します。
+        if (!Files.exists(path)) { // ★追加 ファイルがあるか確認します。
+            return; // ★追加 無ければTodoなしで起動します。
+        }
+        try { // ★追加 ファイルを読み込みます。
+            int maxId = 0; // ★追加 読み込んだ中で最大の番号を記録します。
+            for (String line : Files.readAllLines(path, StandardCharsets.UTF_8)) { // ★追加 UTF-8で各行を読みます。
+                String[] fields = line.split(",", 3); // ★追加 id、完了状態、題名の3つに分けます。
+                if (fields.length == 3) { // ★追加 3項目そろっているか確認します。
+                    int id = Integer.parseInt(fields[0]); // ★追加 idを数に変えます。
+                    Todo todo = new Todo(id, fields[2]); // ★追加 読み込んだidと題名でTodoを作ります。
+                    todo.setDone(fields[1].equals("1")); // ★追加 完了状態を読み込みます。
+                    todos.add(todo); // ★追加 Todoをリストに戻します。
+                    if (id > maxId) { // ★追加 最大idか確認します。
+                        maxId = id; // ★追加 最大idを更新します。
+                    }
+                }
+            }
+            nextId = maxId + 1; // ★追加 次のidを最大idの次にします。
+        } catch (IOException | NumberFormatException e) { // ★追加 読み込みやid変換のエラーを受け止めます。
+            System.err.println("todos.csvを読み込めませんでした: " + e.getMessage()); // ★追加 エラー内容を表示します。
+        }
+    }
 } // Appクラスを終了します。
 
 class Todo { // ★変更 Todoのデータ（番号・題名・完了状態）をまとめるクラスを作ります。
