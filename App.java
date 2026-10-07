@@ -208,7 +208,7 @@ public class App {
                                 .append("'><div class='todo-heading' id='title-view-").append(todo.id)
                                 .append("'><div class='todo-title'>").append(escapeHtml(todo.title)).append(mark)
                                 .append("</div><button type='button' class='edit-button' onclick='toggleTitleEdit(")
-                                .append(todo.id).append(",true)'>編集</button></div>")
+                                .append(todo.id).append(",true)'>タスク名を編集</button></div>")
                                 .append("<form method='post' action='/edit' class='title-edit-form' id='title-form-")
                                 .append(todo.id).append("' hidden>")
                                 .append("<input type='hidden' name='id' value='").append(todo.id).append("'>")
@@ -223,7 +223,7 @@ public class App {
                                         : escapeHtml(todo.dueDate))
                                 .append(deadlineStatus)
                                 .append("</div><button type='button' class='edit-button' onclick='toggleDueEdit(")
-                                .append(todo.id).append(",true)'>編集</button></div>")
+                                .append(todo.id).append(",true)'>締め切り日を編集</button></div>")
                                 .append("<form method='post' action='/due' class='due-form' id='due-form-")
                                 .append(todo.id).append("' hidden>") // Todoごとの締め切り日編集フォームです。
                                 .append("<input type='hidden' name='id' value='").append(todo.id).append("'>") // 編集対象のTodo
