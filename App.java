@@ -9,6 +9,9 @@ import java.sql.PreparedStatement; // SQLを安全に実行します。
 import java.sql.ResultSet; // SELECT結果を読み取ります。
 import java.sql.SQLException; // データベースエラーを扱います。
 import java.sql.Statement; // テーブル作成SQLを実行します。
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList; // SELECT結果を一覧にします。
 import java.util.Comparator;
 import java.util.List; // Todo一覧の型に使います。
@@ -52,11 +55,13 @@ public class App {
             if (path.equals("/due") && method.equals("POST")) { // 締め切り日変更フォームから指定されたTodoを更新します。
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8); // フォームの送信内容をUTF-8で読みます。
                 String filter = formValue(body, "filter"); // 更新後も現在の絞り込みを保ちます。
-                if (!filter.equals("open") && !filter.equals("done")) filter = "all"; // 不正な絞り込み値は全部表示に戻します。
+                if (!filter.equals("open") && !filter.equals("done"))
+                    filter = "all"; // 不正な絞り込み値は全部表示に戻します。
                 try {
                     int id = Integer.parseInt(formValue(body, "id")); // idで更新対象のTodoを特定します。
                     String dueDate = formValue(body, "dueDate"); // 新しい締め切り日を読みます。
-                    try (PreparedStatement statement = connection.prepareStatement("UPDATE todos SET due_date = ? WHERE id = ?")) { // 指定Todoの日付だけを更新します。
+                    try (PreparedStatement statement = connection
+                            .prepareStatement("UPDATE todos SET due_date = ? WHERE id = ?")) { // 指定Todoの日付だけを更新します。
                         statement.setString(1, dueDate); // 未入力なら締め切り日を空にします。
                         statement.setInt(2, id); // 更新対象のidを指定します。
                         statement.executeUpdate(); // SQLiteに日付変更を反映します。
@@ -66,7 +71,8 @@ public class App {
                     throw new IOException(e);
                 }
                 String sort = formValue(body, "sort"); // 現在の並び順を保ちます。
-                if (!sort.equals("due") && !sort.equals("new")) sort = "due";
+                if (!sort.equals("due") && !sort.equals("new"))
+                    sort = "due";
                 exchange.getResponseHeaders().set("Location", "/?filter=" + filter + "&sort=" + sort); // 同じ表示条件の一覧へ戻します。
                 exchange.sendResponseHeaders(303, -1); // 変更後の一覧を再読み込みさせます。
                 exchange.close(); // 通信を閉じます。
@@ -111,25 +117,33 @@ public class App {
 
             StringBuilder html = new StringBuilder(
                     "<!doctype html><html><head><meta charset='UTF-8'><style>\n"
-                            + "*{box-sizing:border-box}body{max-width:680px;margin:2.5rem auto;padding:0 1.25rem;font-size:1rem;line-height:1.6;color:#243044;background:#f5f7fb;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}h1{margin:0 0 1.5rem;color:#243044;font-size:1.8rem}form{margin:0}body>form:first-of-type{display:flex;flex-wrap:wrap;align-items:center;gap:.65rem;margin-bottom:1.25rem;padding:1rem;background:#fff;border:1px solid #e1e7f0;border-radius:12px}input,select,button{min-height:42px;padding:.55rem .75rem;border:1px solid #cbd5e1;border-radius:8px;font:inherit}input[name=todo]{flex:1;min-width:180px}label{display:inline-flex;align-items:center;gap:.5rem}button{border:0;background:#3568c8;color:#fff;font-weight:600;cursor:pointer}button:hover{background:#2855a8}select{background:#fff}ul{display:grid;gap:1rem;margin:1.25rem 0;padding:0;list-style:none}li.todo-card{padding:1.15rem 1.25rem;background:#fff;border:1px solid #e1e7f0;border-radius:12px;box-shadow:0 3px 12px rgba(31,48,74,.06)}.todo-title{font-size:1.25rem;font-weight:700;overflow-wrap:anywhere}.todo-due{margin-top:.25rem;color:#5b6678}.due-form{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-top:.75rem}.todo-actions{display:flex;gap:.65rem;margin-top:.9rem;padding-top:.75rem;border-top:1px solid #edf0f5}.todo-actions a{padding:.35rem .75rem;border-radius:7px;background:#edf3ff;color:#2855a8;text-decoration:none;font-weight:600}.todo-actions a:last-child{background:#fff0f0;color:#b42318}@media(max-width:520px){body{margin:1.25rem auto;padding:0 .85rem}body>form:first-of-type{align-items:stretch}body>form:first-of-type input[name=todo]{flex-basis:100%}.due-form input[type=date]{flex:1;min-width:150px}}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><label>締め切り日 <input type='date' name='dueDate'></label><button>追加</button></form>");
+                            + "*{box-sizing:border-box}body{max-width:680px;margin:2.5rem auto;padding:0 1.25rem;font-size:1rem;line-height:1.6;color:#243044;background:#f5f7fb;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}h1{margin:0 0 1.5rem;color:#243044;font-size:1.8rem}form{margin:0}body>form:first-of-type{display:flex;flex-wrap:wrap;align-items:center;gap:.65rem;margin-bottom:1.25rem;padding:1rem;background:#fff;border:1px solid #e1e7f0;border-radius:12px}input,select,button{min-height:42px;padding:.55rem .75rem;border:1px solid #cbd5e1;border-radius:8px;font:inherit}input[name=todo]{flex:1;min-width:180px}label{display:inline-flex;align-items:center;gap:.5rem}button{border:0;background:#3568c8;color:#fff;font-weight:600;cursor:pointer}button:hover{background:#2855a8}select{background:#fff}ul{display:grid;gap:1rem;margin:1.25rem 0;padding:0;list-style:none}li.todo-card{padding:1.15rem 1.25rem;background:#fff;border:1px solid #e1e7f0;border-radius:12px;box-shadow:0 3px 12px rgba(31,48,74,.06)}li.todo-card.completed{background:#f0f1f3;border-color:#d9dde3;color:#7d8490}.todo-title{font-size:1.25rem;font-weight:700;overflow-wrap:anywhere}.todo-card.completed .todo-title{text-decoration:line-through}.todo-card.completed .todo-due{color:#858c97}.todo-due{margin-top:.25rem;color:#5b6678}.deadline{margin-left:.5rem;font-weight:700}.deadline.overdue{color:#c62828}.deadline.due-soon{color:#7b2cbf}.due-form{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem;margin-top:.75rem}.todo-actions{display:flex;gap:.65rem;margin-top:.9rem;padding-top:.75rem;border-top:1px solid #edf0f5}.todo-actions a{padding:.35rem .75rem;border-radius:7px;background:#edf3ff;color:#2855a8;text-decoration:none;font-weight:600}.todo-actions a:last-child{background:#fff0f0;color:#b42318}@media(max-width:520px){body{margin:1.25rem auto;padding:0 .85rem}body>form:first-of-type{align-items:stretch}body>form:first-of-type input[name=todo]{flex-basis:100%}.due-form input[type=date]{flex:1;min-width:150px}}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><label>締め切り日 <input type='date' name='dueDate'></label><button>追加</button></form>");
             String query = exchange.getRequestURI().getQuery();
             String filter = query == null ? "all" : formValue(query, "filter");
-            if (!filter.equals("open") && !filter.equals("done")) filter = "all";
+            if (!filter.equals("open") && !filter.equals("done"))
+                filter = "all";
             String sort = query == null ? "due" : formValue(query, "sort");
-            if (!sort.equals("due") && !sort.equals("new")) sort = "due";
+            if (!sort.equals("due") && !sort.equals("new"))
+                sort = "due";
             html.append("<form method='get' action='/'><label>表示: <select name='filter' onchange='this.form.submit()'>") // ★一覧の絞り込み選択欄を追加します。
-                    .append("<option value='all'").append(filter.equals("all") ? " selected" : "").append(">全部</option>") // ★全部表示を選択肢にします。
-                    .append("<option value='open'").append(filter.equals("open") ? " selected" : "").append(">未完了だけ</option>") // ★未完了のみを選択肢にします。
-                    .append("<option value='done'").append(filter.equals("done") ? " selected" : "").append(">完了だけ</option>") // ★完了のみを選択肢にします。
+                    .append("<option value='all'").append(filter.equals("all") ? " selected" : "")
+                    .append(">全部</option>") // ★全部表示を選択肢にします。
+                    .append("<option value='open'").append(filter.equals("open") ? " selected" : "")
+                    .append(">未完了だけ</option>") // ★未完了のみを選択肢にします。
+                    .append("<option value='done'").append(filter.equals("done") ? " selected" : "")
+                    .append(">完了だけ</option>") // ★完了のみを選択肢にします。
                     .append("</select></label><label>並び順: <select name='sort' onchange='this.form.submit()'>")
-                    .append("<option value='due'").append(sort.equals("due") ? " selected" : "").append(">締切日が近い順</option>")
-                    .append("<option value='new'").append(sort.equals("new") ? " selected" : "").append(">新しく追加した順</option>")
+                    .append("<option value='due'").append(sort.equals("due") ? " selected" : "")
+                    .append(">締切日が近い順</option>")
+                    .append("<option value='new'").append(sort.equals("new") ? " selected" : "")
+                    .append(">新しく追加した順</option>")
                     .append("</select></label></form>"); // ★絞り込みと並び順の選択欄を閉じます。
             try {
                 List<Todo> todos = loadTodos(); // ★ 一覧をSQLiteのSELECT結果から取得します。
                 List<Todo> visibleTodos = new ArrayList<>(); // ★表示対象だけを入れる一時リストを作ります。
                 for (Todo todo : todos) { // ★DBから読んだTodoを変更せずに絞り込みます。
-                    if (filter.equals("all") || (filter.equals("open") && !todo.done) || (filter.equals("done") && todo.done)) { // ★選択状態に合うTodoだけを表示対象にします。
+                    if (filter.equals("all") || (filter.equals("open") && !todo.done)
+                            || (filter.equals("done") && todo.done)) { // ★選択状態に合うTodoだけを表示対象にします。
                         visibleTodos.add(todo); // ★条件に合うTodoを表示用リストに追加します。
                     }
                 }
@@ -146,18 +160,38 @@ public class App {
                     html.append("<ul class='todo-list'>");
                     for (Todo todo : visibleTodos) {
                         String mark = todo.done ? " ✓" : "";
-                        html.append("<li class='todo-card'><div class='todo-title'>").append(escapeHtml(todo.title)).append(mark)
+                        String deadlineStatus = "";
+                        if (todo.dueDate != null && !todo.dueDate.isEmpty()) {
+                            try {
+                                LocalDate dueDate = LocalDate.parse(todo.dueDate);
+                                long daysUntilDue = ChronoUnit.DAYS.between(LocalDate.now(), dueDate);
+                                if (daysUntilDue < 0) {
+                                    deadlineStatus = " <span class='deadline overdue'>日付超過（"
+                                            + (-daysUntilDue) + "日）</span>";
+                                } else if (daysUntilDue <= 3) {
+                                    deadlineStatus = " <span class='deadline due-soon'>締め切り間近</span>";
+                                }
+                            } catch (DateTimeParseException ignored) {
+                                // 日付形式が不正なTodoには期限状態を表示しません。
+                            }
+                        }
+                        html.append("<li class='todo-card").append(todo.done ? " completed" : "")
+                                .append("'><div class='todo-title'>").append(escapeHtml(todo.title)).append(mark)
                                 .append("</div><div class='todo-due'>締め切り日: ")
                                 .append(todo.dueDate == null || todo.dueDate.isEmpty() ? "未設定"
                                         : escapeHtml(todo.dueDate))
+                                .append(deadlineStatus)
                                 .append("</div>")
                                 .append(" <form method='post' action='/due' class='due-form'>") // Todoごとの締め切り日編集フォームです。
-                                .append("<input type='hidden' name='id' value='").append(todo.id).append("'>") // 編集対象のTodo idを送信します。
+                                .append("<input type='hidden' name='id' value='").append(todo.id).append("'>") // 編集対象のTodo
+                                                                                                               // idを送信します。
                                 .append("<input type='hidden' name='filter' value='").append(filter).append("'>") // 現在の絞り込み状態を送信します。
                                 .append("<input type='hidden' name='sort' value='").append(sort).append("'>")
-                                .append("<input type='date' name='dueDate' value='").append(todo.dueDate == null ? "" : escapeHtml(todo.dueDate)).append("'>") // 現在の日付をdate欄に表示します。
+                                .append("<input type='date' name='dueDate' value='")
+                                .append(todo.dueDate == null ? "" : escapeHtml(todo.dueDate)).append("'>") // 現在の日付をdate欄に表示します。
                                 .append("<button>締め切り日を変更</button></form>") // 入力した日付を保存するボタンです。
-                                .append("<div class='todo-actions'><a href='/done?id=").append(todo.id).append("'>完了</a>")
+                                .append("<div class='todo-actions'><a href='/done?id=").append(todo.id)
+                                .append("'>完了</a>")
                                 .append(" <a href='/delete?id=").append(todo.id).append("'>削除</a></div></li>");
                     }
                     html.append("</ul>");
