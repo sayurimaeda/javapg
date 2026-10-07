@@ -19,9 +19,11 @@ public class App {
         connection = DriverManager.getConnection("jdbc:sqlite:todos.db"); // ★ todos.dbへ接続します。
         try (Statement statement = connection.createStatement()) { // ★ テーブルを用意するSQL文を作ります。
             statement.executeUpdate(
-                    "CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, title TEXT, done INTEGER)"); // ★
-                                                                                                            // 要件の列定義でtodos表を作成します。
+                    "CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, title TEXT, done INTEGER, due_date TEXT)"); // ★
+            // 要件の列定義でtodos表を作成します。
         }
+
+        ensureDueDateColumn();
 
         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
         server.createContext("/", exchange -> {
@@ -29,13 +31,15 @@ public class App {
             String method = exchange.getRequestMethod();
             if (path.equals("/add") && method.equals("POST")) {
                 String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-                String value = body.startsWith("todo=") ? body.substring(5) : "";
-                String title = URLDecoder.decode(value, StandardCharsets.UTF_8);
+                String title = formValue(body, "todo");
+                String dueDate = formValue(body, "dueDate");
                 if (!title.isEmpty()) {
                     try (PreparedStatement statement = connection
-                            .prepareStatement("INSERT INTO todos (title, done) VALUES (?, ?)")) { // ★ 新規TodoをINSERTします。
+                            .prepareStatement("INSERT INTO todos (title, done, due_date) VALUES (?, ?, ?)")) { // ★
+                                                                                                               // 新規TodoをINSERTします。
                         statement.setString(1, title);
                         statement.setInt(2, 0);
+                        statement.setString(3, dueDate);
                         statement.executeUpdate(); // ★ PreparedStatementで追加を実行します。
                     } catch (SQLException e) {
                         throw new IOException(e);
@@ -82,7 +86,7 @@ public class App {
             }
 
             StringBuilder html = new StringBuilder(
-                    "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form>");
+                    "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><label>締め切り日 <input type='date' name='dueDate'></label><button>追加</button></form>");
             try {
                 List<Todo> todos = loadTodos(); // ★ 一覧をSQLiteのSELECT結果から取得します。
                 if (todos.isEmpty()) {
@@ -92,6 +96,10 @@ public class App {
                     for (Todo todo : todos) {
                         String mark = todo.done ? " ✓" : "";
                         html.append("<li>").append(escapeHtml(todo.title)).append(mark)
+                                .append(" <span>締め切り日: ")
+                                .append(todo.dueDate == null || todo.dueDate.isEmpty() ? "未設定"
+                                        : escapeHtml(todo.dueDate))
+                                .append("</span>")
                                 .append(" <a href='/done?id=").append(todo.id).append("'>完了</a>")
                                 .append(" <a href='/delete?id=").append(todo.id).append("'>削除</a></li>");
                     }
@@ -130,14 +138,43 @@ public class App {
         System.out.println("サーバー起動: http://localhost:8080 (停止は Ctrl+C)");
     }
 
+    private static String formValue(String body, String name) {
+        for (String part : body.split("&")) {
+            String[] pair = part.split("=", 2);
+            String key = URLDecoder.decode(pair[0], StandardCharsets.UTF_8);
+            if (key.equals(name)) {
+                return pair.length > 1 ? URLDecoder.decode(pair[1], StandardCharsets.UTF_8) : "";
+            }
+        }
+        return "";
+    }
+
+    private static void ensureDueDateColumn() throws SQLException {
+        boolean exists = false;
+        try (Statement statement = connection.createStatement();
+                ResultSet columns = statement.executeQuery("PRAGMA table_info(todos)")) {
+            while (columns.next()) {
+                if ("due_date".equals(columns.getString("name")))
+                    exists = true;
+            }
+        }
+        if (!exists) {
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate("ALTER TABLE todos ADD COLUMN due_date TEXT");
+            }
+        }
+    }
+
     private static List<Todo> loadTodos() throws SQLException { // ★ CSV読み込みに代わりSQLiteから全件をSELECTします。
         List<Todo> todos = new ArrayList<>();
-        try (PreparedStatement statement = connection.prepareStatement("SELECT id, title, done FROM todos ORDER BY id"); // ★
-                                                                                                                         // 一覧表示用のSELECTです。
+        try (PreparedStatement statement = connection
+                .prepareStatement("SELECT id, title, done, due_date FROM todos ORDER BY id"); // ★
+                // 一覧表示用のSELECTです。
                 ResultSet result = statement.executeQuery()) {
             while (result.next()) {
-                todos.add(new Todo(result.getInt("id"), result.getString("title"), result.getInt("done") != 0)); // ★
-                                                                                                                 // DB行をTodoに変換します。
+                todos.add(new Todo(result.getInt("id"), result.getString("title"), result.getInt("done") != 0,
+                        result.getString("due_date"))); // ★
+                // DB行をTodoに変換します。
             }
         }
         return todos;
@@ -206,11 +243,13 @@ public class App {
         final int id;
         final String title;
         final boolean done;
+        final String dueDate;
 
-        Todo(int id, String title, boolean done) {
+        Todo(int id, String title, boolean done, String dueDate) {
             this.id = id;
             this.title = title;
             this.done = done;
+            this.dueDate = dueDate;
         }
     }
 }
