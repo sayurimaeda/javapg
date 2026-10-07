@@ -82,11 +82,11 @@ public class App {
             }
 
             StringBuilder html = new StringBuilder(
-                    "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のTodo</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form>");
+                    "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><button>追加</button></form>");
             try {
                 List<Todo> todos = loadTodos(); // ★ 一覧をSQLiteのSELECT結果から取得します。
                 if (todos.isEmpty()) {
-                    html.append("<p>Todoはありません。</p>");
+                    html.append("<p>今はおつとめは、無いようじゃな</p>");
                 } else {
                     html.append("<ul>");
                     for (Todo todo : todos) {
