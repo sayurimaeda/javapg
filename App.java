@@ -87,13 +87,28 @@ public class App {
 
             StringBuilder html = new StringBuilder(
                     "<!doctype html><html><head><meta charset='UTF-8'><style>body{max-width:600px;margin:2rem auto;padding:0 1rem;font-size:1rem}</style></head><body><h1>今日のおつとめじゃ</h1><form method='post' action='/add'><input name='todo'><label>締め切り日 <input type='date' name='dueDate'></label><button>追加</button></form>");
+            String filter = "all"; // ★初期状態では全部を表示します。
+            String query = exchange.getRequestURI().getQuery(); // ★選択された表示条件をURLから読み取ります。
+            if ("filter=open".equals(query)) filter = "open"; // ★未完了だけを選んだ状態にします。
+            else if ("filter=done".equals(query)) filter = "done"; // ★完了だけを選んだ状態にします。
+            html.append("<form method='get' action='/'><label>表示: <select name='filter' onchange='this.form.submit()'>") // ★一覧の絞り込み選択欄を追加します。
+                    .append("<option value='all'").append(filter.equals("all") ? " selected" : "").append(">全部</option>") // ★全部表示を選択肢にします。
+                    .append("<option value='open'").append(filter.equals("open") ? " selected" : "").append(">未完了だけ</option>") // ★未完了のみを選択肢にします。
+                    .append("<option value='done'").append(filter.equals("done") ? " selected" : "").append(">完了だけ</option>") // ★完了のみを選択肢にします。
+                    .append("</select></label></form>"); // ★選択欄を閉じます。
             try {
                 List<Todo> todos = loadTodos(); // ★ 一覧をSQLiteのSELECT結果から取得します。
-                if (todos.isEmpty()) {
+                List<Todo> visibleTodos = new ArrayList<>(); // ★表示対象だけを入れる一時リストを作ります。
+                for (Todo todo : todos) { // ★DBから読んだTodoを変更せずに絞り込みます。
+                    if (filter.equals("all") || (filter.equals("open") && !todo.done) || (filter.equals("done") && todo.done)) { // ★選択状態に合うTodoだけを表示対象にします。
+                        visibleTodos.add(todo); // ★条件に合うTodoを表示用リストに追加します。
+                    }
+                }
+                if (visibleTodos.isEmpty()) {
                     html.append("<p>今はおつとめは、無いようじゃな</p>");
                 } else {
                     html.append("<ul>");
-                    for (Todo todo : todos) {
+                    for (Todo todo : visibleTodos) {
                         String mark = todo.done ? " ✓" : "";
                         html.append("<li>").append(escapeHtml(todo.title)).append(mark)
                                 .append(" <span>締め切り日: ")
