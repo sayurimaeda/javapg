@@ -107,15 +107,15 @@ public class App {
                 exchange.close(); // 通信を閉じます。
                 return; // 更新処理を終えます。
             }
-            if ((path.equals("/done") || path.equals("/delete")) && method.equals("GET")) {
+            if ((path.equals("/done") || path.equals("/open") || path.equals("/delete")) && method.equals("GET")) {
                 String query = exchange.getRequestURI().getQuery();
                 if (query != null && query.startsWith("id=")) {
                     try {
                         int id = Integer.parseInt(query.substring(3));
-                        if (path.equals("/done")) {
+                        if (path.equals("/done") || path.equals("/open")) {
                             try (PreparedStatement statement = connection
                                     .prepareStatement("UPDATE todos SET done = ? WHERE id = ?")) { // ★ 完了状態をUPDATEします。
-                                statement.setInt(1, 1);
+                                statement.setInt(1, path.equals("/done") ? 1 : 0);
                                 statement.setInt(2, id);
                                 statement.executeUpdate(); // ★ PreparedStatementで更新を実行します。
                             }
@@ -233,8 +233,9 @@ public class App {
                                 .append("<input type='date' name='dueDate' value='")
                                 .append(todo.dueDate == null ? "" : escapeHtml(todo.dueDate)).append("'>") // 現在の日付をdate欄に表示します。
                                 .append("<button>保存</button></form>") // 入力した日付を保存するボタンです。
-                                .append("<div class='todo-actions'><a href='/done?id=").append(todo.id)
-                                .append("'>完了</a>")
+                                .append("<div class='todo-actions'><a href='")
+                                .append(todo.done ? "/open?id=" : "/done?id=").append(todo.id)
+                                .append("'>").append(todo.done ? "未完了" : "完了").append("</a>")
                                 .append(" <a href='/delete?id=").append(todo.id).append("'>削除</a></div></li>");
                     }
                     html.append("</ul>");
